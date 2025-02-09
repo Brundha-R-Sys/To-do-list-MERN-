@@ -1,0 +1,169 @@
+import React, { useState, useEffect } from "react";
+
+export default function Todo() {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [todos, setTodos] = useState([]);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [editingId, setEditingId] = useState(null);
+
+  const apiUrl = "http://localhost:8000";
+
+  useEffect(() => {
+    fetchTodos();
+  }, []);
+
+  const fetchTodos = async () => {
+    try {
+      const response = await fetch(`${apiUrl}/todos`);
+      if (response.ok) {
+        const data = await response.json();
+        setTodos(data);
+      } else {
+        setError("Unable to fetch Todo items.");
+      }
+    } catch (error) {
+      setError("Unable to fetch Todo items.");
+    }
+  };
+
+  const handleSubmit = async () => {
+    setError("");
+    setMessage("");
+
+    if (title.trim() !== "" && description.trim() !== "") {
+      try {
+        if (editingId) {
+          const response = await fetch(`${apiUrl}/todos/${editingId}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ title, description }),
+          });
+
+          if (response.ok) {
+            setTodos(
+              todos.map((todo) =>
+                todo._id === editingId ? { ...todo, title, description } : todo
+              )
+            );
+            setMessage("Todo updated successfully!");
+            setEditingId(null);
+          } else {
+            setError("Unable to update Todo item.");
+          }
+        } else {
+          const response = await fetch(`${apiUrl}/todos`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ title, description }),
+          });
+
+          if (response.ok) {
+            const newTodo = await response.json();
+            setTodos([...todos, newTodo]);
+            setMessage("Todo added successfully!");
+          } else {
+            setError("Unable to create Todo item.");
+          }
+        }
+        setTitle("");
+        setDescription("");
+        setTimeout(() => setMessage(""), 3000);
+      } catch (error) {
+        setError("Unable to create or update Todo item.");
+      }
+    } else {
+      setError("Title and Description cannot be empty.");
+    }
+  };
+
+  const handleEdit = (todo) => {
+    setTitle(todo.title);
+    setDescription(todo.description);
+    setEditingId(todo._id);
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      const response = await fetch(`${apiUrl}/todos/${id}`, {
+        method: "DELETE",
+      });
+      if (response.ok) {
+        setTodos(todos.filter((todo) => todo._id !== id));
+        setMessage("Todo deleted successfully!");
+        setTimeout(() => setMessage(""), 3000);
+      } else {
+        setError("Unable to delete Todo item.");
+      }
+    } catch (error) {
+      setError("Unable to delete Todo item.");
+    }
+  };
+
+  return (
+    <>
+      <div className="header">
+        <h1>ToDo Project with MERN Stack</h1>
+      </div>
+
+      <div className="todo-form">
+        <h3>{editingId ? "Edit Item" : "Add Item"}</h3>
+        {message && <p className="success-message">{message}</p>}
+        {error && <p className="error-message">{error}</p>}
+        <div className="form-group">
+          <input
+            placeholder="Title"
+            onChange={(e) => setTitle(e.target.value)}
+            value={title}
+            className="form-control"
+            type="text"
+          />
+          <input
+            placeholder="Description"
+            onChange={(e) => setDescription(e.target.value)}
+            value={description}
+            className="form-control"
+            type="text"
+          />
+          <button className="btn" onClick={handleSubmit}>
+            {editingId ? "Update" : "Submit"}
+          </button>
+        </div>
+      </div>
+
+      <div className="todo-list">
+        <h3>Todo List</h3>
+        {todos.length > 0 ? (
+          <ul className="list">
+            {todos.map((todo) => (
+              <li key={todo._id} className="list-item">
+                <span>
+                  <strong>{todo.title}</strong>: {todo.description}
+                </span>
+                <div className="buttons">
+                  <button className="edit-btn" onClick={() => handleEdit(todo)}>
+                    Edit
+                  </button>
+                  <button
+                    className="delete-btn"
+                    onClick={() => handleDelete(todo._id)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No items available.</p>
+        )}
+      </div>
+    </>
+  );
+}
+ 
